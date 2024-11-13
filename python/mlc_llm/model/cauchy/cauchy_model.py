@@ -34,7 +34,7 @@ class CauchyConfig(ConfigBase):
     qkv_bias: bool
     bos_token_id: int
     eos_token_id: int
-    tie_word_embeddings: bool = False
+    tie_word_embeddings: bool = True
     rope_theta: int = 10000
     context_window_size: int = 0
     prefill_chunk_size: int = 0
