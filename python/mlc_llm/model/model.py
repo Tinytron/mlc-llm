@@ -39,6 +39,7 @@ from .rwkv5 import rwkv5_loader, rwkv5_model, rwkv5_quantization
 from .rwkv6 import rwkv6_loader, rwkv6_model, rwkv6_quantization
 from .stable_lm import stablelm_loader, stablelm_model, stablelm_quantization
 from .starcoder2 import starcoder2_loader, starcoder2_model, starcoder2_quantization
+from .cauchy import cauchy_model, cauchy_quantization, cauchy_loader
 
 ModelConfig = Any
 """A ModelConfig is an object that represents a model architecture. It is required to have
@@ -517,6 +518,18 @@ MODELS: Dict[str, Model] = {
             "group-quant": minicpm_quantization.group_quant,
             "ft-quant": minicpm_quantization.ft_quant,
         },
+    ),
+    "cauchy": Model(
+        name="cauchy",
+        model=cauchy_model.CauchyForCausalLM,
+        config=cauchy_model.CauchyConfig,
+        source={
+            "huggingface-torch": cauchy_loader.huggingface,
+            "huggingface-safetensor": cauchy_loader.huggingface,
+        },
+        quantize={
+            "no-quant": cauchy_quantization.no_quant,
+        }
     ),
     "deepseek": Model(
         name="deepseek",

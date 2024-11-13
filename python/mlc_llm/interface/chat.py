@@ -186,7 +186,6 @@ class ChatState:
         output_text = ""
         finish_reason_length = False
         messages = self.history[self.history_window_begin :]
-
         for response in self.engine.chat.completions.create(
             messages=messages,
             model=self.model,
