@@ -41,7 +41,7 @@ def run_cmake(mlc4j_path: Path):
         "-DMLC_LLM_INSTALL_STATIC_LIB=ON",
         "-DCMAKE_SKIP_INSTALL_ALL_DEPENDENCY=ON",
         "-DUSE_OPENCL=ON",
-        "-DUSE_OPENCL_ENABLE_HOST_PTR=ON",
+#        "-DUSE_OPENCL_ENABLE_HOST_PTR=ON",
         "-DUSE_CUSTOM_LOGGING=ON",
     ]
 

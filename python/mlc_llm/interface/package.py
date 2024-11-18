@@ -107,11 +107,11 @@ def build_model_library(  # pylint: disable=too-many-branches,too-many-locals,to
         app_config_model_entry["model_lib"] = model_lib
 
         # - Bundle weight
-        if is_local_model and not bundle_weight:
-            raise ValueError(
-                f'Model "{model}" in "model_list" is a local path.'
-                f'Please set \'"bundle_weight": true\' in the entry of model "{model}".'
-            )
+        # if is_local_model and not bundle_weight:
+        #    raise ValueError(
+        #        f'Model "{model}" in "model_list" is a local path.'
+        #        f'Please set \'"bundle_weight": true\' in the entry of model "{model}".'
+        #    )
         if bundle_weight:
             if not os.path.isfile(model_path / "ndarray-cache.json"):
                 raise ValueError(

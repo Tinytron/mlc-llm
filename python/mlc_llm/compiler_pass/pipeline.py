@@ -35,7 +35,9 @@ from .fuse_dequantize_transpose import FuseDequantizeTranspose
 from .fuse_ft_dequantize_matmul_epilogue import FuseFTDequantizeEpilogue
 from .fuse_transpose_matmul import FuseTransposeMatmul
 from .lift_global_buffer_alloc import LiftTIRGlobalBufferAlloc
-from .low_batch_specialization import LowBatchGemvSpecialize
+from .opencl_matmul import OpenCLMatmul
+from .opencl_gemv import OpenCLGEMV
+from .low_batch_specialization import LowBatchGemvSpecialize, LowBatchGemvOpenCLSpecialize
 from .pipeline_parallel_rewrite import PipelineParallelRewrite
 from .scatter_tuple_get_item import ScatterTupleGetItem
 
@@ -104,7 +106,7 @@ def _mlc_llm_pipeline(  # pylint: disable=too-many-arguments
                 DispatchKVCacheCreation(target, flashinfer, metadata),
                 AttachSoftmaxWithTemperature(target),
                 AttachVariableBounds(variable_bounds),
-                AttachCUDAGraphSymbolicCaptureHints(cuda_graph_symbolic_capture_hints),
+                # AttachCUDAGraphSymbolicCaptureHints(cuda_graph_symbolic_capture_hints),
                 AttachPipelineParallelStages(metadata["pipeline_parallel_stages"]),
                 AttachLogitProcessFunc(target),
                 AttachAdditionalPrimFuncs(additional_tirs),
@@ -141,10 +143,13 @@ def _mlc_llm_pipeline(  # pylint: disable=too-many-arguments
                 _DebugDump("debug-phase3.py", debug_dump, show_meta=False),
                 # Phase 4. Low-level Optimizations
                 _LogProgress("Running TVM Dlight low-level optimizations"),
-                LowBatchGemvSpecialize(),
+                # LowBatchGemvSpecialize(),
+                LowBatchGemvOpenCLSpecialize(),
                 dl.ApplyDefaultSchedule(
-                    dl.gpu.Matmul(),
-                    dl.gpu.GEMV(),
+                    OpenCLMatmul(),
+                    OpenCLGEMV(),
+                    # dl.gpu.Matmul(),
+                    # dl.gpu.GEMV(),
                     dl.gpu.Reduction(),
                     dl.gpu.GeneralReduction(),
                     dl.gpu.Fallback(),

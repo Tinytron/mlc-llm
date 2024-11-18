@@ -74,6 +74,11 @@ def no_quant(
     model: nn.Module = LlamaForCausalLM(model_config)
     model.to(quantization.model_dtype)
     quant_map = QuantizeMapping({}, {})
+    model = quantization.quantize_model(
+        model,
+        quant_map,
+        "",
+    )
     return model, quant_map
 
 
