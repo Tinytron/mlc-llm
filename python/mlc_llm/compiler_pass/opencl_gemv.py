@@ -75,8 +75,8 @@ class OpenCLGEMV(GPUScheduleRule):
         block_size_x = 128
         micro_size_k = 8
 
-        if int_n >= 4096:
-            micro_size_k = 4
+        # if int_n >= 4096:
+        #     micro_size_k = 4
         
         VecSize = min(get_max_factor(int_n, [1, 2, 4]), micro_size_x)
         Threads_X = min(get_max_factor(int_n // VecSize, [8, 16, 32, 64, 128]), block_size_x)

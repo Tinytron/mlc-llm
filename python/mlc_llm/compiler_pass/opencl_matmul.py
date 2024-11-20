@@ -113,10 +113,10 @@ class OpenCLMatmul(GPUScheduleRule):
             # print(block_stmt.reads[-1].region[-1].min, block_stmt.reads[-1].region[-1], block_stmt.reads[-1], {it.var: it.kind for it in iter_infos})
             return {it.var: it.kind for it in iter_infos}.get(end_it, "O") == "R"
 
-#        if not is_inner_reduction(block_stmt, iter_infos):
-        ret = self.sch_outer_reduction(sch, config, main_block, blocks)
-        if ret is not None:
-            return ret
+        if not is_inner_reduction(block_stmt, iter_infos):
+            ret = self.sch_outer_reduction(sch, config, main_block, blocks)
+            if ret is not None:
+                return ret
 
         raise Exception("Unknown matmul")
 
@@ -176,10 +176,19 @@ class OpenCLMatmul(GPUScheduleRule):
 
         # block = sch.reindex(reduction_block, ("read", 0))
         
+        N = int(sch.get(n).extent)
+        if N % 128 == 0:
+            sch.transform_layout(reduction_block, buffer=("read", 1),
+                            index_map=lambda ng, k, nc: (k, ng * 128 + nc))
+        
         if len(reduction_loops) == 4:
             sch.pad_einsum(reduction_block, [1, Unroll_M, 1, 1])
         else:
             sch.pad_einsum(reduction_block, [Unroll_M, 1, 1])
+
+        if N % 128 == 0:
+            sch.transform_layout(reduction_block, buffer=("read", 1),
+                            index_map=lambda k, n: (n // 128, k, n % 128))
 
         trans_block = None
         matmul_reindex = None

@@ -287,7 +287,7 @@ class PhiCausalLMHead1(nn.Module):
         super().__init__()
         self.tie_word_embeddings = config.tie_word_embeddings
         self.ln = nn.LayerNorm(config.n_embd, eps=config.layer_norm_epsilon)
-        self.linear = nn.Linear(config.n_embd, "vocab_size", bias=not config.tie_word_embeddings)
+        self.linear = nn.Linear(config.n_embd, config.vocab_size, bias=not config.tie_word_embeddings)
 
     def forward(self, hidden_states: Tensor):
         if hidden_states.dtype == "float32":
@@ -316,7 +316,7 @@ class PhiCausalLMHead(nn.Module):
         self.tie_word_embeddings = config.tie_word_embeddings
         self.ln = nn.LayerNorm(config.n_embd, eps=config.layer_norm_epsilon)
         if not self.tie_word_embeddings:
-            self.linear = nn.Linear(config.n_embd, "vocab_size")
+            self.linear = nn.Linear(config.n_embd, config.vocab_size)
         else:
             self.linear = Qwen2Embedding(config.vocab_size, config.n_embd)
     
