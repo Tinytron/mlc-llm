@@ -30,7 +30,6 @@ def huggingface(model_config: PhiConfig, quantization: Quantization) -> ExternMa
     param_map : ExternMapping
         The parameter mapping from MLC to HuggingFace PyTorch.
     """
-
     model = PhiForCausalLM(model_config)
     if quantization is not None:
         model.to(quantization.model_dtype)
@@ -49,6 +48,7 @@ def huggingface(model_config: PhiConfig, quantization: Quantization) -> ExternMa
                 dtype=named_parameters[mlc_name].dtype,
             ),
         )
+
     if model_config.model_type == "mixformer-sequential":
         _add("transformer.embd.weight", "layers.0.wte.weight")
         prefix = "transformer.h"
@@ -124,17 +124,12 @@ def phi1_huggingface(model_config: Phi1Config, quantization: Quantization) -> Ex
                 dtype=named_parameters[mlc_name].dtype,
             ),
         )
-    if not model_config.tie_word_embeddings:
-        _add("lm_head.linear.bias", "lm_head.bias")
-        _add("lm_head.linear.weight", "lm_head.weight")
-        _add("lm_head.ln.weight", "model.final_layernorm.weight")
-        _add("lm_head.ln.bias", "model.final_layernorm.bias")
-        _add("transformer.embd.weight", "model.embed_tokens.weight")
-    else:
-        _add("transformer.embd.ln.weight", "model.final_layernorm.weight")
-        _add("transformer.embd.ln.bias", "model.final_layernorm.bias")
-        _add("transformer.embd.linear.weight", "model.embed_tokens.weight")
-        
+
+    _add("lm_head.linear.weight", "lm_head.weight")
+    _add("lm_head.linear.bias", "lm_head.bias")
+    _add("lm_head.ln.weight", "model.final_layernorm.weight")
+    _add("lm_head.ln.bias", "model.final_layernorm.bias")
+    _add("transformer.embd.weight", "model.embed_tokens.weight")
 
     prefix = "transformer.h"
     hf_prefix = "model.layers"

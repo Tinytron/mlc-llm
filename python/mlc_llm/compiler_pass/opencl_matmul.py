@@ -113,10 +113,10 @@ class OpenCLMatmul(GPUScheduleRule):
             # print(block_stmt.reads[-1].region[-1].min, block_stmt.reads[-1].region[-1], block_stmt.reads[-1], {it.var: it.kind for it in iter_infos})
             return {it.var: it.kind for it in iter_infos}.get(end_it, "O") == "R"
 
-        if not is_inner_reduction(block_stmt, iter_infos):
-            ret = self.sch_outer_reduction(sch, config, main_block, blocks)
-            if ret is not None:
-                return ret
+#        if not is_inner_reduction(block_stmt, iter_infos):
+        ret = self.sch_outer_reduction(sch, config, main_block, blocks)
+        if ret is not None:
+            return ret
 
         raise Exception("Unknown matmul")
 

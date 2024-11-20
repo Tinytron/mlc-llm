@@ -31,8 +31,7 @@ class Phi1Config(ConfigBase):  # pylint: disable=too-many-instance-attributes
     num_attention_heads: int = 32
     layer_norm_eps: float = 1e-5
     position_embedding_base: int = 0
-    partial_rotary_factor: float = 0.4
-    tie_word_embeddings: bool = True
+    partial_rotary_factor: float = 0.5
     num_key_value_heads: int = 0
     context_window_size: int = 0
     prefill_chunk_size: int = 0
@@ -103,7 +102,6 @@ class PhiConfig(ConfigBase):  # pylint: disable=too-many-instance-attributes
     rotary_dim: int = 32
     position_embedding_base: int = 0
     layer_norm_epsilon: float = 1e-5
-    tie_word_embeddings: bool = True
     context_window_size: int = 0
     prefill_chunk_size: int = 0
     n_head_kv: int = 0
@@ -282,63 +280,26 @@ class PhiParallelBlock(nn.Module):
         return attn_out + mlp_out + residual
 
 
-class PhiCausalLMHead1(nn.Module):
+class PhiCausalLMHead(nn.Module):
     def __init__(self, config: PhiConfig) -> None:
         super().__init__()
-        self.tie_word_embeddings = config.tie_word_embeddings
+
         self.ln = nn.LayerNorm(config.n_embd, eps=config.layer_norm_epsilon)
-        self.linear = nn.Linear(config.n_embd, "vocab_size", bias=not config.tie_word_embeddings)
+        self.linear = nn.Linear(config.n_embd, "vocab_size")
 
     def forward(self, hidden_states: Tensor):
-        if hidden_states.dtype == "float32":
-            hidden_states = self.ln(hidden_states)
+        hidden_states = self.ln(hidden_states)
         logits = self.linear(hidden_states)
 
         if logits.dtype != "float32":
             logits = logits.astype("float32")
         return logits
-    
-class Qwen2Embedding(nn.Embedding):
-    """The embedding module specialized for Qwen2 so that
-    it can be shared with the final lm_head.
-    """
 
-    def lm_head_forward(self, x: nn.Tensor):
-        """The lm_head forwarding, which transposes the weight and multiplies
-        with the input tensor.
-        """
-        weight = nn.op.permute_dims(self.weight)
-        return nn.op.matmul(x, weight, out_dtype="float32")
-    
-class PhiCausalLMHead(nn.Module):
-    def __init__(self, config: PhiConfig) -> None:
-        super().__init__()
-        self.tie_word_embeddings = config.tie_word_embeddings
-        self.ln = nn.LayerNorm(config.n_embd, eps=config.layer_norm_epsilon)
-        if not self.tie_word_embeddings:
-            self.linear = nn.Linear(config.n_embd, "vocab_size")
-        else:
-            self.linear = Qwen2Embedding(config.vocab_size, config.n_embd)
-    
-    def forward(self, hidden_states: Tensor):
-        if hidden_states.dtype in ["float32", "float16"]:
-            hidden_states = self.ln(hidden_states)
-            logits = self.linear.lm_head_forward(hidden_states)
-            if logits.dtype != "float32":
-                logits = logits.astype("float32")
-        else:
-            # hidden_states.dtype = "int32"
-            logits = self.linear(hidden_states)
-
-        return logits
 
 class PhiModel(nn.Module):
     def __init__(self, config: PhiConfig) -> None:
         super().__init__()
-        if config.tie_word_embeddings:
-            self.embd = PhiCausalLMHead(config)
-        else:
-            self.embd = nn.Embedding(config.vocab_size, config.n_embd)
+        self.embd = nn.Embedding(config.vocab_size, config.n_embd)
         self.h = nn.ModuleList([PhiParallelBlock(config) for _ in range(config.n_layer)])
 
     def forward(self, input_embed: Tensor, paged_kv_cache: PagedKVCache):
@@ -356,11 +317,9 @@ class PhiForCausalLM(nn.Module):
 
         if isinstance(config, Phi1Config):
             config = PhiConfig.from_phi1(config)
+
         self.transformer = PhiModel(config)
-        self.tie_word_embeddings = config.tie_word_embeddings
-        if not self.tie_word_embeddings:
-            self.lm_head = PhiCausalLMHead(config)
-        
+        self.lm_head = PhiCausalLMHead(config)
         self.num_hidden_layers = config.n_layer
         self.num_attention_heads = config.n_head
         self.num_key_value_heads = config.n_head_kv
@@ -388,10 +347,7 @@ class PhiForCausalLM(nn.Module):
         hidden_states = self.transformer(input_embeds, paged_kv_cache)
         if logit_positions is not None:
             hidden_states = op.take(hidden_states, logit_positions, axis=1)
-        if self.tie_word_embeddings:
-            lm_logits = self.transformer.embd(hidden_states)
-        else:
-            lm_logits = self.lm_head(hidden_states)
+        lm_logits = self.lm_head(hidden_states)
         if lm_logits.dtype != "float32":
             lm_logits = lm_logits.astype("float32")
         return lm_logits
@@ -405,11 +361,7 @@ class PhiForCausalLM(nn.Module):
 
         hidden_states = self.transformer(input_embed, paged_kv_cache)
         hidden_states = op.tensor_expr_op(_index, name_hint="index", args=[hidden_states])
-        
-        if self.tie_word_embeddings:
-            logits = self.transformer.embd(hidden_states)
-        else:
-            logits = self.lm_head(hidden_states)
+        logits = self.lm_head(hidden_states)
 
         if logits.dtype != "float32":
             logits = logits.astype("float32")
@@ -420,10 +372,7 @@ class PhiForCausalLM(nn.Module):
         op_ext.configure()
 
         hidden_states = self.transformer(input_embed, paged_kv_cache)
-        if self.tie_word_embeddings:
-            logits = self.transformer.embd(hidden_states)
-        else:
-            logits = self.lm_head(hidden_states)
+        logits = self.lm_head(hidden_states)
         if logits.dtype != "float32":
             logits = logits.astype("float32")
         return logits, paged_kv_cache
