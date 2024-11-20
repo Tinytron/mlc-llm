@@ -223,7 +223,7 @@ class TransposeEmbedding(nn.Module):
 
     def lm_head_forward(self, x: nn.Tensor):
         # return nn.op.matmul(x, self.weight, out_dtype="float32")
-        if self.out_features % 128 == 0:
+        if self.num % 128 == 0:
             return nn.op.astype(nn.op.tensor_expr_op(te_matmul128, "matmul", args=[x, self.weight]), "float32")
         else:
             return nn.op.matmul(x, self.weight, out_dtype="float32")
